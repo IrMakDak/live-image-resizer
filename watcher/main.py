@@ -1,11 +1,10 @@
-import argparse
+import requests
 import time
+import argparse
 
-from PIL import Image
-from pathlib import Path
 from watchdog.observers import Observer
+from pathlib import Path
 from watchdog.events import FileSystemEventHandler
-
 
 SUPPORTED_EXTENSIONS = {
     ".jpg",
@@ -20,8 +19,6 @@ def parse_args():
         description="Изменение размера изображений в папке"
     )
     parser.add_argument("directory_path", help="Путь к папке с изображениями")
-    parser.add_argument("new_width", type=int, help="Новая ширина изображений")
-    parser.add_argument("new_height", type=int, help="Новая высота изображений")
     parser.add_argument(
         "--output",
         "-o",
@@ -32,9 +29,7 @@ def parse_args():
 
 
 class ImageHandler(FileSystemEventHandler):
-    def __init__(self, new_width, new_height, output_path):
-        self.new_width = new_width
-        self.new_height = new_height
+    def __init__(self, output_path):
         self.output_path = Path(output_path)
         self.output_path.mkdir(exist_ok=True)
 
@@ -46,32 +41,22 @@ class ImageHandler(FileSystemEventHandler):
         file_path = Path(event.src_path)
         if file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
             try:
-                self.resize_image(file_path)
-                print(f"Обработан новый файл: {file_path.name}")
+                response = requests.post(
+                    "http://127.0.0.1:5000/process_image",
+                    json={"file_path": str(event.src_path)},
+                )
+                # Проверяем статус-код
+                response.raise_for_status()
+
+                print(f"Сервер ответил: {response.json()}")
+            except requests.exceptions.RequestException as e:
+                print(f"Ошибка при отправке запроса: {str(e)}")
             except Exception as e:
-                print(f"Ошибка при обработке {file_path.name}: {str(e)}")
-
-    def resize_image(self, file_path):
-
-        stem = file_path.stem  # filename
-        suffix = file_path.suffix  # extension with dot
-
-        width = int(self.new_width)
-        height = int(self.new_height)
-
-        new_filename = f"{stem}_{width}x{height}{suffix}"
-
-        new_path = self.output_path / new_filename
-
-        image = Image.open(file_path)
-
-        resized_image = image.resize((width, height))
-
-        resized_image.save(new_path)
+                print(f"Неожиданная ошибка при обработке {file_path.name}: {str(e)}")
 
 
-def watch_directory(directory_path, new_width, new_height, output_dir):
-    event_handler = ImageHandler(new_width, new_height, output_dir)
+def watch_directory(directory_path, output_dir):
+    event_handler = ImageHandler(output_dir)
     observer = Observer()
     observer.schedule(event_handler, directory_path, recursive=False)
     observer.start()
@@ -93,4 +78,4 @@ def watch_directory(directory_path, new_width, new_height, output_dir):
 
 if __name__ == "__main__":
     args = parse_args()
-    watch_directory(args.directory_path, args.new_width, args.new_height, args.output)
+    watch_directory(args.directory_path, args.output)
