@@ -1,9 +1,10 @@
+import argparse
+import time
+
 from PIL import Image
 from pathlib import Path
-import argparse
-
-# from watchdog.observers import Observer
-# from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 
 SUPPORTED_EXTENSIONS = {
@@ -30,50 +31,66 @@ def parse_args():
     return parser.parse_args()
 
 
-def resize_image(file_path, new_width, new_height, output_path):
+class ImageHandler(FileSystemEventHandler):
+    def __init__(self, new_width, new_height, output_path):
+        self.new_width = new_width
+        self.new_height = new_height
+        self.output_path = Path(output_path)
+        self.output_path.mkdir(exist_ok=True)
 
-    # Get original filename without extension
-    path = Path(file_path)
+    def on_created(self, event):
+        # нам нужно обрабатывать только файлы изображений, а не папки
+        if event.is_directory:
+            return
 
-    stem = path.stem  # filename
-    suffix = path.suffix  # extension with dot
-
-    width = int(new_width)
-    height = int(new_height)
-
-    new_filename = f"{stem}_{width}x{height}{suffix}"
-
-    new_path = output_path / new_filename
-
-    image = Image.open(path)
-
-    resized_image = image.resize((width, height))
-
-    resized_image.save(new_path)
-
-    return resized_image
-
-
-def process_directory(directory_path, new_width, new_height, output_dir):
-    directory = Path(directory_path)
-
-    output_path = Path(output_dir)
-    output_path.mkdir(exist_ok=True)
-
-    total_processed = 0
-    for file_path in directory.iterdir():
+        file_path = Path(event.src_path)
         if file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
             try:
-                resize_image(file_path, new_width, new_height, output_path)
-                total_processed += 1
-                print(f"Обработан файл: {file_path.name}")
-            except Exception:
-                print(f"Ошибка при обработке {file_path.name}: {str(Exception)}")
+                self.resize_image(file_path)
+                print(f"Обработан новый файл: {file_path.name}")
+            except Exception as e:
+                print(f"Ошибка при обработке {file_path.name}: {str(e)}")
 
-    print(f"\nГотово! Обработано файлов: {total_processed}")
+    def resize_image(self, file_path):
+
+        stem = file_path.stem  # filename
+        suffix = file_path.suffix  # extension with dot
+
+        width = int(self.new_width)
+        height = int(self.new_height)
+
+        new_filename = f"{stem}_{width}x{height}{suffix}"
+
+        new_path = self.output_path / new_filename
+
+        image = Image.open(file_path)
+
+        resized_image = image.resize((width, height))
+
+        resized_image.save(new_path)
+
+
+def watch_directory(directory_path, new_width, new_height, output_dir):
+    event_handler = ImageHandler(new_width, new_height, output_dir)
+    observer = Observer()
+    observer.schedule(event_handler, directory_path, recursive=False)
+    observer.start()
+
+    try:
+        print(f"Начато отслеживание папки: {directory_path}")
+        print(f"Изображения будут сохраняться в: {output_dir}")
+        print("Нажмите Ctrl+C для завершения...")
+        while True:
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        observer.stop()
+        print("\nОтслеживание завершено")
+
+    # чтобы Observer успел корректно остановиться
+    observer.join()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    process_directory(args.directory_path, args.new_width, args.new_height, args.output)
-    print(f"Готово! Файлы сохранены с разрешением {args.new_width}x{args.new_height}")
+    watch_directory(args.directory_path, args.new_width, args.new_height, args.output)
