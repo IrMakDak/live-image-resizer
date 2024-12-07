@@ -6,6 +6,10 @@ from watchdog.observers import Observer
 from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 
+SERVER_PORT = 5000
+PROCESS_IMAGE_HOST = "http://127.0.0.1"
+PROCESS_IMAGE_ROUTE = "/process_image"
+
 SUPPORTED_EXTENSIONS = {
     ".jpg",
     ".jpeg",
@@ -42,7 +46,7 @@ class ImageHandler(FileSystemEventHandler):
         if file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
             try:
                 response = requests.post(
-                    "http://127.0.0.1:5000/process_image",
+                    f"{PROCESS_IMAGE_HOST}:{SERVER_PORT}{PROCESS_IMAGE_ROUTE}",
                     json={"file_path": str(event.src_path)},
                 )
                 # Проверяем статус-код

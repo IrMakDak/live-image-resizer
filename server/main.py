@@ -2,10 +2,14 @@ from flask import Flask, request
 from PIL import Image
 from pathlib import Path
 
+
 WIDTH = 800
 HEIGHT = 600
+JPEG_QUALITY = 85  # Баланс между качеством и размером файла
 # TODO: change
 OUTPUT_PATH = "./resized"
+
+SERVER_PORT = 5000
 
 app = Flask(__name__)
 
@@ -24,13 +28,17 @@ def process_image():
         stem = file_path.stem  # filename
         suffix = file_path.suffix  # extension with dot
 
-        new_filename = f"{stem}_{WIDTH}x{HEIGHT}{suffix}"
+        new_filename = f"{stem}_{WIDTH}x{HEIGHT}.jpg"
 
         new_path = output_path / new_filename
 
-        image = Image.open(file_path)
-        resized_image = image.resize((WIDTH, HEIGHT))
-        resized_image.save(new_path)
+        with Image.open(file_path) as image:
+
+            if image.mode != "RGB":
+                image = image.convert("RGB")
+
+            resized_image = image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+            resized_image.save(new_path, "JPEG", quality=JPEG_QUALITY, optimize=True)
 
         return {"status": "success", "message": f"Image processed: {new_filename}"}
 
@@ -39,4 +47,4 @@ def process_image():
 
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(port=SERVER_PORT, debug=True)
