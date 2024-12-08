@@ -1,13 +1,18 @@
-from flask import Flask, request
+import random
+
+from flask import Flask, request, jsonify, send_file
 from PIL import Image
 from pathlib import Path
 
 
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 500
+HEIGHT = 700
 JPEG_QUALITY = 85  # Баланс между качеством и размером файла
+
 # TODO: change
-OUTPUT_PATH = "./resized"
+OUTPUT_PATH = "../resized"
+ORIGINALS_PATH = "../originals"
+
 
 SERVER_PORT = 5000
 
@@ -26,7 +31,6 @@ def process_image():
 
     try:
         stem = file_path.stem  # filename
-        suffix = file_path.suffix  # extension with dot
 
         new_filename = f"{stem}_{WIDTH}x{HEIGHT}.jpg"
 
@@ -44,6 +48,36 @@ def process_image():
 
     except Exception as error:
         return {"status": "Error", "message": str(error)}, 500
+
+
+@app.route("/random_image", methods=["GET"])
+def get_random_image():
+    # Возвращает случайное изображение из папки
+    try:
+        path = Path(ORIGINALS_PATH)
+
+        if not path.exists():
+            return (
+                jsonify(
+                    {"status": "error", "message": "Output directory does not exist"}
+                ),
+                404,
+            )
+
+        # Получаем список всех .jpg файлов
+        images = list(path.glob("*.jpg"))
+
+        if not images:
+            return jsonify({"status": "error", "message": "No images found"}), 404
+
+        # Выбираем случайное изображение
+        random_image = random.choice(images)
+
+        # Возвращаем файл изображения
+        return send_file(random_image, mimetype="image/jpeg")
+
+    except Exception as error:
+        return jsonify({"status": "error", "message": str(error)}), 500
 
 
 if __name__ == "__main__":

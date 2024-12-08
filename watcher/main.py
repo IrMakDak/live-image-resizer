@@ -26,8 +26,8 @@ def parse_args():
     parser.add_argument(
         "--output",
         "-o",
-        default="./resized",
-        help="Папка для сохранения результатов (по умолчанию: ./resized)",
+        default="../resized",
+        help="Папка для сохранения результатов (по умолчанию: ../resized)",
     )
     return parser.parse_args()
 
