@@ -1,5 +1,17 @@
 .DS_Store
 .DS_Store?
 
-resized/*
-originals/*
+pycache/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.pyc
+
+processed_photos/*
+input_photos/*
+
+*.db
+
+venv
+.env
+.mypy_cache
